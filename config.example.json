@@ -1,0 +1,18 @@
+{
+  "obsidian": {
+    "vaultPath": "",
+    "coreIndex": "03-papers/00_核心文献索引.md",
+    "ideaIndex": "03-papers/01_思路与问题索引.md"
+  },
+  "zotero": {
+    "mcpServerName": "zotero",
+    "mcpUrl": "http://127.0.0.1:23120/mcp",
+    "noteTitlePrefix": "OLH Reading Note"
+  },
+  "writePolicy": {
+    "zoteroNote": "confirm",
+    "coreIndex": "confirm",
+    "ideaIndex": "confirm",
+    "metadata": "never_by_default"
+  }
+}
