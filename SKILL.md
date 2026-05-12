@@ -79,19 +79,140 @@
 
 ---
 
-## 工作流
+## 前置条件
 
-### 1. import_paper（导入文献）
+在开始任何工作流之前，必须满足以下条件：
 
-**目标**：将一篇新文献纳入知识库，生成 Zotero Note 草稿。
+| 条件 | 说明 |
+|------|------|
+| Zotero 运行中 | Zotero 桌面版 7.x，MCP 插件已加载 |
+| MinerU 已安装 | conda 环境 `mineru`，CLI 可调用（见 README.md） |
+| zotero-mcp ≥ 1.4.7+import | 必须包含 `import` action（已 fork 修改，PR 待合并） |
+| 磁盘空间 | TEMP 目录有足够空间存放临时文件 |
+
+---
+
+## 工作流总览
+
+```
+用户拖 PDF 入 Zotero（前置，OLH 外）
+     │
+     ▼
+用户调用 OLH + 指定条目 ←── 流程起点
+     │
+     ▼
+┌──────────────────────────────────────┐
+│ 检查：有 MD 吗？                       │
+│   ├─ 有 → 跳过，直接进入 import_paper  │
+│   └─ 无 → 0. pdf_to_md（全自动）      │
+└─────────┬────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────┐
+│ 1. import_paper（粗读，默认终点）       │
+│                                      │
+│  LLM 填基本信息 → 标 [需核对]          │
+│  → 逐条问用户 → 敲定 Note              │
+│                                      │
+│  状态: imported   不进入核心索引        │
+└─────────┬────────────────────────────┘
+          │  用户明确说"精读"才触发
+          ▼
+┌──────────────────────────────────────┐
+│ 2. deep_read_paper（精读，显式触发）    │
+│                                      │
+│  逐 section 讨论 → 提取洞察            │
+│  → 更新 Note → 拟定索引卡片            │
+│  → 用户审阅 → 写入核心索引             │
+│                                      │
+│  状态: deep-read   进入核心索引        │
+└─────────┬────────────────────────────┘
+          │
+          ▼
+┌──────────────────────────────────────┐
+│ 3. capture_idea                      │  灵感/假设/问题 → 写入 Obsidian idea 索引
+└──────────────────────────────────────┘
+```
+
+**两层阅读模型**：
+
+| | 粗读 (imported) | 精读 (deep-read) |
+|---|---|---|
+| **触发** | 默认，导入即粗读 | 用户明确声明"精读" |
+| **LLM 角色** | 中间助理：填基础信息，细节问用户 | 讨论伙伴：逐 section 深入 |
+| **进入核心索引** | 不进入 | 进入（唯一路径） |
+| **Note 个人总结** | 留空待填 | LLM + 用户共同完成 |
+
+跨流程检索：
+```
+┌──────────────────────────────────────┐
+│ 4. answer_with_kb                    │  按索引 → Note → MD → PDF 顺序检索
+│    (只读，不写入索引)                  │
+└──────────────────────────────────────┘
+```
+
+### 0. pdf_to_md（PDF 转 Markdown + 清理边界 + 附加到 Zotero）
+
+**目标**：全自动将一篇文献的 PDF 转换为 MinerU MD，检测 References 边界，并附加到 Zotero 条目。
+
+**核心调用**：
+
+```
+mineru -p <input.pdf> -o <output_dir> -b pipeline
+```
+
+**步骤**：
+
+1. **获取 PDF attachment key**：通过 Zotero MCP `get_item_details` 获取 PDF 附件的 key（如 `Q4U34REQ`）。
+2. **检查是否已有 MD**：附件列表中是否已存在 `output.md`。已有 → 跳到步骤 5。
+3. **调用 MinerU**（bash 单引号 + 环境变量传参，`run_in_background: true`，超时 3 分钟）：
+   ```bash
+   STORAGE_KEY="<attachmentKey>" pwsh -NoProfile -Command '
+   $env:PATH = "C:\ProgramData\miniconda3\envs\mineru;C:\ProgramData\miniconda3\envs\mineru\Scripts;C:\ProgramData\miniconda3\envs\mineru\Library\bin;" + $env:PATH
+   $env:MINERU_MODEL_SOURCE = "modelscope"
+   $storageDir = Join-Path "C:\Users\zhisheng\Zotero\storage" $env:STORAGE_KEY
+   $pdf = Get-ChildItem $storageDir -Filter "*.pdf" | Select-Object -First 1
+   $tmp = Join-Path $env:TEMP ("mineru_" + (Get-Random))
+   New-Item -ItemType Directory -Force $tmp | Out-Null
+   $pdfAscii = Join-Path $tmp "input.pdf"
+   Copy-Item $pdf.FullName $pdfAscii
+   mineru -p $pdfAscii -o $tmp -b pipeline
+   $md = Get-ChildItem $tmp -Recurse -Filter "*.md" | Select-Object -First 1
+   Copy-Item $md.FullName (Join-Path $storageDir "output.md")
+   Remove-Item -Recurse -Force $tmp
+   Write-Host "DONE"
+   '
+   ```
+   **关键设计**：
+   - bash 单引号包围 pwsh 脚本，杜绝 bash 对 `$` 变量的展开。
+   - 通过环境变量 `STORAGE_KEY`（纯 ASCII）传递 attachmentKey，不经过 bash 字符串解析。
+   - PDF 先复制为 `input.pdf`（纯 ASCII 文件名）再喂给 mineru，避免 mineru 内部用中文文件名拼接输出路径时的 Unicode 损坏。
+   - 临时目录 `$tmp` 在处理完成后整目录删除，无残留。
+4. **用 Haiku 检测 References 边界**（不重写全文）：
+   - 使用 `prompts/clean_references.md` prompt。
+   - **只发送文件尾部 20-30%**，Haiku 输出 References 起始行号。
+   - 成本约 3000 input + 50 output tokens。后续读取时只取行号之前的内容。
+5. **自动附加到 Zotero**（无需 GUI 操作）：
+   ```
+   mcp__zotero__write_item(action="import", filePath="<storageDir>\\output.md", parentItemKey="<itemKey>")
+   ```
+   使用 zotero-mcp 的 `import` action，将 `output.md` 注册为文献的子附件。
+
+### 1. import_paper（导入文献 / 粗读）
+
+**目标**：将一篇新文献纳入知识库，生成 Zotero Note 草稿。LLM 作为中间助理，填充基本信息，深入细节以问题形式请教用户。
+
+**触发**：用户提及"导入文献"、"整理这篇"、或 pdf_to_md 完成后自然衔接。
+
+**阅读层级**：`imported`（粗读）。这是默认终点，不进入核心索引。
 
 **步骤**：
 
 1. **定位文献**：通过 Zotero MCP 搜索文献 title / citekey / itemKey。
 2. **检查 PDF**：获取 PDF attachmentKey。
    - 无 PDF → 提醒用户先添加 PDF。
-3. **检查 MD**：获取 MinerU 转换的 Markdown attachmentKey。
-   - 无 MD → 提醒用户使用 MinerU 插件转换。
+3. **检查 MD**：附件列表中是否已有 MinerU Markdown（`output.md` 或 `.md` 附件）。
+   - 无 MD → 先执行 `pdf_to_md` 工作流。
 4. **读取并清理 MD**：
    - 读取 MD attachment 内容。
    - **清理文末 References**：LLM 识别并丢弃文末的 References / Bibliography / 参考文献 / 参考资料段落。该段落通常在文档后半部分，以标题行开始。不要删除致谢（Acknowledgments）、附录（Appendix）、补充材料。也不要在正文中误删"references"一词。
@@ -106,16 +227,24 @@
    - 不确定内容标记 `[需核对]`。
    - 阅读状态设为 `imported`。
    - 使用 `prompts/read_paper_to_zotero_note.md` 作为生成指引。
-8. **写入前确认**：向用户展示草稿，确认后通过 Zotero MCP 写入 Note。
+8. **向用户提问**：草稿展示后，扫描全文含 `[需核对]` 标记的内容，以问答形式逐条列出，请用户逐项确认或修正。不要等用户自己找。
+   - 同时询问用户对论文的初步判断（是否有价值精读、与自身研究的关联等）。
+   - 用户回答后，将确认/修正内容写回 Note，移除 `[需核对]` 标记。
+9. **写入前确认**：展示最终草稿，确认后通过 Zotero MCP 写入 Note。
    - 如果已有 Note，仅 append 或更新指定 section，不覆盖用户已有个人笔记。
+   - **不询问是否加入核心索引**（粗读不进入索引）。
 
 ### 2. deep_read_paper（精读文献）
 
-**目标**：深度阅读一篇文献，提取关键洞察。
+**目标**：深度阅读一篇文献，提取关键洞察。**仅用户明确声明时触发**（如"精读这篇"、"deep read"、"深入读一下"）。
+
+**触发**：用户明确说出"精读"、"deep read"、"深入读"等关键词。不说这些词 → 不触发精读。
+
+**阅读层级**：`deep-read`。精读是进入 Obsidian 核心文献索引的**唯一路径**。
 
 **步骤**：
 
-1. **读取 Zotero Note**：获取已有笔记全文。
+1. **读取 Zotero Note**：获取已有笔记全文（必须先有 import_paper 的粗读笔记）。
 2. **必要时读取 MD**：当需要精确核查数据、方法细节时，读取 MinerU Markdown（先清理 References，同上）。
 3. **与用户讨论**：逐 section 讨论论文内容，记录用户的判断和洞察。
 4. **生成新增 insight**：
@@ -123,7 +252,10 @@
    - 更新阅读状态为 `deep-read`。
 5. **写入确认**：询问用户：
    - 是否写回 Zotero Note（append 或更新指定 section）？
-   - 是否加入 Obsidian 核心文献索引？→ 触发 `promote_to_core_index`（遵循 Obsidian 索引写入安全协议）。
+   - **是否加入 Obsidian 核心文献索引？**→ 精读文章必须问这一条。
+     1. 先按 `templates/core_index_entry_template.md` 拟定索引卡片草稿（5-8 行）。
+     2. 展示给用户，征求修改意见。
+     3. 用户确认后，遵循 [Obsidian 索引写入安全协议](#obsidian-索引写入安全协议最高优先级) 增量追加到 `03-papers/00_核心文献索引.md`。
    - 是否产生新的 idea？→ 触发 `capture_idea`（遵循 Obsidian 索引写入安全协议）。
 
 ### 3. capture_idea（捕捉灵感）
@@ -171,10 +303,10 @@
 
 ## 依赖
 
-- **Zotero MCP Server**：用于 Zotero 文献操作（搜索、读写 Note、获取 metadata、读取 attachment）。
-- **MinerU 插件**：用于 PDF → Markdown 转换。
-- **Python 3.8+**：仅用于 `config_manager.py` 和 `setup_olh_kb.py` 两个配置工具。
-- **Obsidian**：用于两个索引文件的存放，由 LLM 直接读写，无需中间脚本。
+- **Zotero 桌面版 7.x**：文献管理核心。
+- **zotero-mcp（含 import 支持）**：MCP 插件，`write_item` 的 `import` action 用于自动附加 MD 文件。当前使用 fork 版（PR 待合并到 cookjohn/zotero-mcp）。
+- **MinerU**：PDF → Markdown 转换。通过 conda 环境 `mineru` 安装（`pip install -U "mineru[all]"`），模型源设为 `modelscope`。
+- **Obsidian**：存放两个轻量索引文件，LLM 直接读写。
 
 ## 文件结构
 
