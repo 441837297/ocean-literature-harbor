@@ -1,100 +1,127 @@
-# {{title}}
+<div data-schema-version="9">
+
+<h1 style="color:#1f3b4d; background:linear-gradient(90deg,#edf5fb 0%,#f6fbf8 100%); padding:10px 12px; border-left:6px solid #6d97ae; border-radius:6px;">{{title}}</h1>
 
 <!-- OLH-NOTE v1 | citekey={{citekey}} | itemKey={{itemKey}} -->
 
-## Meta Data
+<h2 style="color:#000000; background:linear-gradient(90deg,#5db4a4 0%,#7cc8bb 100%); padding:6px 10px; border-radius:6px;">Meta Data</h2>
+<hr style="border:none; border-top:1px solid #d7ece7;"/>
 
-| 属性 | 内容 |
-| --- | --- |
-| **作者** | {{authors}} |
-| **期刊** | {{journal}}, {{volume}}: {{pages}}, {{year}}. |
-| **本地链接** | [{{citekey}}.pdf](zotero://open-pdf/library/items/{{pdfAttachmentKey}}) |
-| **DOI** | [{{doi}}](https://doi.org/{{doi}}) |
-| **摘要** | *{{abstract}}* |
-| **笔记日期** | {{date}} |
+<table style="width:100%; border-collapse:separate; border-spacing:0 6px;">
+<tr><td style="color:#1f3b4d; background-color:#eef7f6; padding:10px 12px; border-left:4px solid #7bb7a4; border-radius:6px;"><b>作者:</b> {{authors}}</td></tr>
+<tr><td style="color:#1f3b4d; background-color:#f7fbff; padding:10px 12px; border-left:4px solid #7aa6c2; border-radius:6px;"><b>期刊:</b> <b style="color:#c0392b">{{journal}},</b> {{volume}}: {{pages}}, {{year}}.</td></tr>
+<tr><td style="color:#1f3b4d; background-color:#eef7f6; padding:10px 12px; border-left:4px solid #7bb7a4; border-radius:6px;"><b>本地链接:</b> <a href="zotero://open-pdf/library/items/{{pdfAttachmentKey}}" style="color:#2f6f91; text-decoration:none;">{{citekey}}.pdf</a></td></tr>
+<tr><td style="color:#1f3b4d; background-color:#f7fbff; padding:10px 12px; border-left:4px solid #7aa6c2; border-radius:6px;"><b>DOI:</b> <a href="https://doi.org/{{doi}}" style="color:#2f6f91; text-decoration:none;">{{doi}}</a></td></tr>
+<tr><td style="color:#1f3b4d; background-color:#eef7f6; padding:10px 12px; border-left:4px solid #7bb7a4; border-radius:6px;"><b>笔记日期:</b> {{date}}</td></tr>
+</table>
 
-## 🔎 检索卡
+<h2 style="color:#000000; background:linear-gradient(90deg,#5b8fa8 0%,#7baac0 100%); padding:6px 10px; border-radius:6px;">🔎 检索卡</h2>
+<hr style="border:none; border-top:1px solid #d8e4ec;"/>
 
-- **citekey**: {{citekey}}
-- **Zotero itemKey**: {{itemKey}}
-- **PDF attachmentKey**: {{pdfAttachmentKey}}
-- **MD attachmentKey**: {{mdAttachmentKey}}
-- **主题关键词**:
-- **一句话贡献**:
-- **摘要**:
-- **最值得记住**:
-- **可用于写作**: Introduction / Methods / Results / Discussion / Review
-- **关键证据位置**: Fig. / Table. / Section.
-- **我的判断**:
-- **注意事项 / 不要误用**:
-- **阅读状态**: imported / note-generated / deep-read / core-indexed
+<ul>
+<li><b>citekey</b>: {{citekey}}</li>
+<li><b>Zotero itemKey</b>: {{itemKey}}</li>
+<li><b>PDF attachmentKey</b>: {{pdfAttachmentKey}}</li>
+<li><b>MD attachmentKey</b>: {{mdAttachmentKey}}</li>
+<li><b>一句话贡献</b>:</li>
+<li><b>最值得记住</b>:</li>
+<li><b>可用于写作</b>: Introduction / Methods / Results / Discussion / Review</li>
+<li><b>关键证据位置</b>: Fig. / Table. / Section.</li>
+<li><b>我的判断</b>:</li>
+<li><b>注意事项 / 不要误用</b>:</li>
+<li><b>阅读状态</b>: imported / note-generated / deep-read / core-indexed</li>
+</ul>
 
----
+<h2 style="color:#000000; background:linear-gradient(90deg,#5db4a4 0%,#7cc8bb 100%); padding:6px 10px; border-radius:6px;">📜 研究核心</h2>
+<hr style="border:none; border-top:1px solid #d7ece7;"/>
 
-## 📜 研究核心
+<h3 style="color:#2d5f73;">⚙️ 内容</h3>
 
-### ⚙️ 内容
+<ol>
+<li><b>研究背景与动机</b>：</li>
+<li><b>核心工作</b>：</li>
+<li><b>解决的问题</b>：</li>
+</ol>
 
-1. **研究背景与动机**：
-2. **核心工作**：
-3. **解决的问题**：
+<h3 style="color:#2d5f73;">💡 创新点</h3>
 
-### 💡 创新点
+<ul>
+<li></li>
+</ul>
 
--
+<h3 style="color:#2d5f73;">🧩 不足</h3>
 
-### 🧩 不足
+<ul>
+<li></li>
+</ul>
 
--
+<h2 style="color:#000000; background:linear-gradient(90deg,#5b8fa8 0%,#7baac0 100%); padding:6px 10px; border-radius:6px;">🔁 研究内容</h2>
+<hr style="border:none; border-top:1px solid #d8e4ec;"/>
 
-## 🔁 研究内容
+<h3 style="color:#2d5f73;">💧 数据</h3>
 
-### 💧 数据
+<p><b>① 数据集名称</b></p>
+<ul>
+<li><b>来源/机构</b>：</li>
+<li><b>数据类型</b>：</li>
+<li><b>时空分辨率</b>：</li>
+<li><b>时间范围</b>：</li>
+<li><b>使用变量</b>：</li>
+<li><b>用途</b>：</li>
+</ul>
 
-**① 数据集名称**
-- **来源/机构**：
-- **数据类型**：
-- **时空分辨率**：
-- **时间范围**：
-- **使用变量**：
-- **用途**：
+<h3 style="color:#2d5f73;">👩🏻‍💻 方法</h3>
 
-### 👩🏻‍💻 方法
+<p><b>1. 方法概述</b>：</p>
 
-**1. 方法概述**：
+<p><b>2. 核心方法详述</b></p>
 
-**2. 核心方法详述**
+<p><b>① 方法名称</b></p>
+<ul>
+<li>目的：</li>
+<li>关键公式：</li>
+<li>关键参数：</li>
+</ul>
 
-**① 方法名称**
-- 目的：
-- 关键公式：
-- 关键参数：
+<p><b>3. 方法选择的合理性</b>：</p>
+<ul>
+<li></li>
+</ul>
 
-**3. 方法选择的合理性**：
+<h3 style="color:#2d5f73;">🔬 实验 / 主要发现</h3>
 
-### 🔬 实验 / 主要发现
+<p><b>发现1：</b></p>
+<ul>
+<li><b>数据支撑</b>：</li>
+<li><b>潜在机制</b>：</li>
+<li><b>与已有文献对比</b>：</li>
+</ul>
 
-**发现1：**
-- **数据支撑**：
-- **潜在机制**：
-- **与已有文献对比**：
+<h3 style="color:#2d5f73;">📜 结论</h3>
 
-### 📜 结论
+<ol>
+<li></li>
+</ol>
 
-1.
-2.
-3.
+<h2 style="color:#000000; background:linear-gradient(90deg,#5db4a4 0%,#7cc8bb 100%); padding:6px 10px; border-radius:6px;">🤔 个人总结</h2>
+<hr style="border:none; border-top:1px solid #d7ece7;"/>
 
-## 🤔 个人总结
+<h3 style="color:#2d5f73;">🙋‍♀️ 重点记录</h3>
 
-### 🙋‍♀️ 重点记录
+<ul>
+<li></li>
+</ul>
 
--
+<h3 style="color:#2d5f73;">📌 待解决</h3>
 
-### 📌 待解决
+<ul>
+<li></li>
+</ul>
 
--
+<h3 style="color:#2d5f73;">💭 思考启发</h3>
 
-### 💭 思考启发
+<ul>
+<li></li>
+</ul>
 
--
+</div>

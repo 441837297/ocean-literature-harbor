@@ -2,7 +2,8 @@
   "obsidian": {
     "vaultPath": "",
     "coreIndex": "03-papers/00_核心文献索引.md",
-    "ideaIndex": "03-papers/01_思路与问题索引.md"
+    "ideaIndex": "03-papers/01_思路与问题索引.md",
+    "tagRegistry": "03-papers/02_Tag_Registry.md"
   },
   "zotero": {
     "mcpServerName": "zotero",
@@ -13,6 +14,7 @@
     "zoteroNote": "confirm",
     "coreIndex": "confirm",
     "ideaIndex": "confirm",
-    "metadata": "never_by_default"
+    "metadata": "never_by_default",
+    "tagRegistry": "confirm"
   }
 }

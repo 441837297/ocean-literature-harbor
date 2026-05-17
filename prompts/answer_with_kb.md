@@ -51,9 +51,10 @@
 
 1. **不得跳过索引直接扫描所有 PDF**。必须先查索引，再查 Zotero Notes，逐层深入。
 2. 如果索引中找不到相关文献，告知用户并建议扩大检索词或通过 Zotero 直接搜索。
-3. 每条 evidence 必须标注来源层级。
-4. 区分"作者结论"和"我的判断"，不要混淆。
-5. **answer_with_kb 是只读检索流程**。不在此流程中写入任何 Obsidian 索引。如需写入，转入 capture_idea 或 promote_to_core_index 流程。
+3. **标签辅助检索**：在 Zotero 层检索时，利用条目原生 tags 中的 `controlled_tags` 进行过滤。`controlled_tags` 命名空间（theme/region/process/method/data/variable）对应 Tag Registry Sections 5-11。未命名空间化的 tags 不用于正式分类检索。
+4. 每条 evidence 必须标注来源层级。
+5. 区分"作者结论"和"我的判断"，不要混淆。
+6. **answer_with_kb 是只读检索流程**。不在此流程中写入任何 Obsidian 索引。如需写入，转入 capture_idea 或 promote_to_core_index 流程。
 
 ## 禁止行为
 

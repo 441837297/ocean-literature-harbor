@@ -35,6 +35,31 @@
 
 清理完成后，以剩余内容作为后续提取的材料。
 
+## Tag Registry 读取与标签分配
+
+在生成 Zotero Note 之前，必须先从 Obsidian 读取 `03-papers/02_Tag_Registry.md`，获取完整的受控标签词表。
+
+### 标签写入方式
+
+标签**不写入 Zotero Note**。使用 Zotero MCP `write_tag` 直接将标签写入 Zotero 条目原生 tags 字段：
+
+| 字段 | 规则 | Zotero tag 格式 |
+|------|------|-----------------|
+| `primary_collection` | exactly 1 | `primary_collection:<name>` |
+| `secondary_collections` | 0-3 | `secondary_collection:<name>` |
+| `primary_label` | exactly 1 | `primary_label:<label>` |
+| `controlled_tags` | 5-12 | `namespace:value`（保持原格式，如 `process:heat_transport`） |
+
+生成 Zotero Note 之后，调用 `write_tag(action="add", itemKey="<itemKey>", tags=[...])` 批量写入。
+
+### 标签分配约束
+
+1. 所有 `controlled_tags` 必须来自 Tag Registry。**不得自创**。
+2. `primary_label` 从 Tag Registry Section 3 中选择 exactly 1 个。
+3. `primary_collection` 和 `secondary_collections` 从 Tag Registry Section 2 中选择。
+4. 选择 controlled_tags 时应覆盖：theme、region、process、method、data 等多个命名空间。
+5. **如不确定任何标签，直接向用户提问确认**，不要猜测。
+
 ## 输出要求
 
 - **只输出 Zotero Note Markdown**，不要输出长篇解释、评价或对话。
@@ -52,14 +77,13 @@
 | journal, volume, pages, year | Zotero metadata | 格式如 `Journal of Climate, 37: 1234-1256, 2024.` |
 | 本地链接 | pdfAttachmentKey | `[citekey.pdf](zotero://open-pdf/library/items/KEY)` |
 | DOI | Zotero metadata | `[DOI](https://doi.org/DOI)`；DOI 为空时写 `[无]`，不生成坏链接 |
-| 摘要 | Zotero metadata | *斜体*引用原文 abstract |
 | 笔记日期 | 当前日期 | YYYY-MM-DD |
 
 ### 🔎 检索卡（必须生成）
 
 - `pdfAttachmentKey`：PDF 附件 key。
 - `mdAttachmentKey`：MinerU Markdown 附件 key。
-- 摘要可以在检索卡中压缩为更短的版本（1-2 句），完整摘要已在 Meta Data 表中。
+- 检索卡**不包含** tags、主题关键词或摘要。Tags 由 Zotero 原生 tags 管理，摘要由 Zotero metadata 提供，无需在 Note 中重复。
 
 ## 写作规则
 
@@ -72,7 +96,7 @@
    - **绝对不能覆盖**用户已有的个人笔记（`🤔 个人总结` 部分及用户手动填写的内容）。
    - 对任何**删除或覆盖**操作必须先询问用户并获得明确同意。
    - 阅读状态按进度更新：`imported` → `note-generated` → `deep-read` → `core-indexed`。
-6. **摘要**：优先使用作者原文的 abstract；如无 abstract，从清理后的 MD 中提取，标记 `[从全文提取]`。
+6. **标签工作流**：生成 Note 后，根据已分配的标签调用 `write_tag(action="add", ...)` 批量写入 Zotero 条目原生 tags。如不确定标签选择，先与用户确认后再写入。
 7. **个人总结部分严格区分**：
    - `🙋‍♀️ 重点记录`：作者自己的结论和发现。
    - `📌 待解决`：论文中未解决的问题、方法的局限性。
@@ -86,8 +110,12 @@
 
 ## 禁止行为
 
+- 不要输出 YAML frontmatter。Note 正文从 `# 标题` 开始，前面不得有任何内容。
+- 不要在 Note 中写入 tags、free_keywords、candidate_tag、主题关键词。Tags 由 Zotero 原生 tags 管理。
 - 不要生成 Obsidian paper note（独立 .md 文件）
 - 不要在未经确认的情况下覆盖已有 Zotero Note
 - 不要修改 Zotero metadata
 - 不要修改 PDF 或 MD 原文
 - 不要将 References 清理结果写回 MD 文件
+- 不要自创 Tag Registry 中不存在的 controlled_tag。不确定标签时向用户提问确认。
+- 不要在 Note 中复制完整 abstract。Zotero metadata 已包含摘要，无需重复。

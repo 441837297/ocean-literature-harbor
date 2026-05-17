@@ -26,7 +26,14 @@
 | 关键发现 | 最重要的 1 个发现 |
 | 可用于写作 | Introduction / Methods / Results / Discussion / Review 选一个 |
 | 我的判断 | 对论文可信度、相关性的个人评价（1 句） |
-| 标签 | 2-4 个关键词，用逗号分隔 |
+| 主标签 | primary_label，从 Zotero 条目 tags 读取，exactly 1 |
+| 检索标签 | 5-8 个最重要的 controlled_tags，从 Zotero 条目 tags 读取 |
+
+## 标签来源
+
+- 索引卡片的 `primary_label` 和 `controlled_tags` 从 Zotero 条目原生 tags 读取（不是从 Note 检索卡文本解析）。
+- 使用 `get_item_details` 获取条目 tags，筛选 `primary_label:` 前缀和 namespace:value 格式的 controlled_tags。
+- 核心索引只保留最重要的 5-8 个 controlled_tags，不要列出全量。
 
 ## 写入规则（严格遵守 Obsidian 索引写入安全协议）
 

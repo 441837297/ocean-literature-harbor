@@ -9,4 +9,5 @@
 - **关键发现**：{{key_finding}}
 - **可用于写作**：{{writing_section}}
 - **我的判断**：{{my_judgment}}
-- **标签**：{{tags}}
+- **主标签**：{{primary_label}}
+- **检索标签**：{{controlled_tags}}
