@@ -19,7 +19,7 @@
 OLH 只有两个实际内容层级：
 
 1. **Markdown 层**：Zotero `output.md` — MinerU 从 PDF 转换的纯文本检索材料。不是原始档案，References 边界明确时可清理。
-2. **Note 层**：Zotero Note — 每篇论文唯一的高信号 OLH 格式笔记。不含完整文字，是后续检索和写作的主要证据来源。
+2. **Note 层**：Zotero Note — 每篇论文唯一的高信号 OLH 格式笔记。不含完整文字，是用户个人精读参考，手动翻阅或精读时使用。自动检索流程（answer_with_kb）不读 Note。
 
 - **PDF 是原始档案**：永远不修改，不直接用于日常检索。
 - **Obsidian 只保留两个轻量索引**：
@@ -31,10 +31,12 @@ OLH 只有两个实际内容层级：
 
 OLH 的常规证据层级如下，但 `answer_with_kb` 不会自动一路查到底：
 
-1. Obsidian 两个轻量索引：用于快速定位和轻量背景，不作为强制第一步。
-2. Zotero Notes：默认检索入口。
-3. Zotero `output.md`：仅在 Note 不足且用户 / 调用 skill 允许时读取。
-4. PDF 原文：非常规检索层，仅用户明确要求，或 Markdown 仍不足且用户同意时读取。
+1. Obsidian 两个轻量索引：可选，用于快速定位和轻量背景，不作为强制第一步。
+2. Zotero item metadata（Abstract）：`get_item_details(preview)` 即可获取，answer 流程的第二轮过滤层。
+3. Zotero `output.md`：Haiku subagent 带着问题定向阅读，answer 流程的第三轮深入层。
+4. PDF 原文：非常规检索层，仅用户明确要求，或 `output.md` 仍不足且用户同意时读取。
+
+Zotero Note 保留为用户个人精读参考（"处理这篇""精读这篇"流程），但不作为 answer_with_kb 的检索层。
 
 ---
 
@@ -207,31 +209,74 @@ Opus subagent（`model: opus`，一次只处理一篇）：
 
 该服务主要由 ocean-paper-writer 显式调用。用户直接问文献证据时也可使用，但 OLH 被直接唤起时不主动列为启动选项。
 
-### 步骤
+### 设计原则
 
-**1. 默认先查 Zotero Note**
+- 以最低 token 成本定位相关文献，仅在确认相关性后才深入全文。
+- Note 是用户个人精读参考，**不作为 answer 流程的检索层**。
+- 只有"带着问题去读"的层面才派 Haiku subagent。
+- 发现某篇没有 `output.md` 时标记 `[MD NOT AVAILABLE]`，不自动触发生成。
 
-- 通过 Zotero MCP 搜索相关文献的 Note。
-- 如果 Obsidian 两个轻量索引中已有相关记录，可以先读索引用于定位。
+### 模型分配
 
-**2. 判断是否足够**
+| 步骤 | 执行者 | 模型 | subagent? |
+|------|------|:---:|:---:|
+| Round 1: 搜索锁定候选 | 主 agent | 当前模型 | 否 |
+| Round 2: Abstract 过滤 | 主 agent | 当前模型 | 否（≤5 篇时） |
+| Round 3: 定向阅读 output.md | Haiku subagent | haiku | 是，多篇可并行 |
+| 汇总回答 | 主 agent | 当前模型 | — |
 
-- Note 已足够回答 → 返回答案，标注证据来源（Note 层）。
-- Note 不足 → 明确说明"Note 层证据不足"，并**询问用户是否继续读取 `output.md`**。不等用户确认前不自动读取。
+Opus 在 answer_with_kb 中不需要出场。
 
-**3. 仅在用户允许时读取 output.md**
+### 轮间确认规则
 
-- 用户确认后读取 `output.md` 全文（Opus subagent 读，主 agent 不读）。
-- 返回答案，标注证据来源（MD 层）。
+每轮完成后主 agent 必须向用户汇报结果，**询问是否继续下一轮**。不等用户确认前不进入下一轮。
 
-**4. PDF 不是常规检索层**
+汇报格式：
+- Round 1 结束后：列出候选列表 + 初步判断，问"是否进入 Round 2 读取 Abstract？"
+- Round 2 结束后：列出过滤结果 + 每篇相关性简述，问"是否进入 Round 3 定向阅读 X 篇？"
+- Round 3 结束后：汇总证据，问"是否满足需求，还是需要查 PDF 原文？"
 
-- 只有用户明确要求，或 `output.md` 仍不足且用户同意时才查 PDF。
+### 检索步骤
 
-**5. 全程约束**
+**Round 1 — 搜索锁定候选**
 
-- 不写 Zotero tags。
-- 不写 Zotero Note。
+- `search_library` 按关键词搜索，拿到候选列表（key + title + creators + date）。
+- 主 agent 根据标题判断初步相关性，锁定需要进一步查看的候选（通常 3–8 篇）。
+- Obsidian 两个轻量索引可选：如果索引中已有相关 citekey，可直接用于定位，但非强制步骤。
+- **Round 1 结束后：向用户展示候选列表，确认是否继续。**
+
+**Round 2 — Abstract 过滤**
+
+- 对每篇候选调用 `get_item_details(itemKey=..., mode="preview")`。
+- `preview` 模式返回 abstractNote（~200–500 字符/篇），token 成本极低。
+- 主 agent 根据 Abstract 判断是否与研究问题相关，筛选出需要深入阅读的文献（通常 1–5 篇）。
+- 候选 > 5 篇时可派并行 Haiku subagent 过滤，返回 `{"relevant": true/false, "reason": "..."}`。
+- **Round 2 结束后：向用户展示过滤结果 + 相关性简述，确认是否继续深入。**
+
+**Round 3 — 定向阅读 output.md（Haiku subagent）**
+
+- Haiku subagent（`model: haiku`）一次处理一篇。
+- subagent 读取 `output.md` 全文，**带着研究问题定向提取**证据。
+- subagent 不生成 Note，不修改文件。只返回与问题相关的 2–5 段原文引用 + 位置标注。
+- 多篇互不依赖 → 可并行派多个 Haiku subagent。
+- 某篇没有 `output.md` → 标记 `[MD NOT AVAILABLE]`，降级到 Abstract 层回答。
+- **Round 3 结束后：汇总证据回答，询问是否需要查 PDF 原文。**
+
+**PDF 不是常规检索层**
+
+- 仅用户明确要求，或 `output.md` 仍不足且用户同意时才查 PDF。
+
+### 主 agent 汇总
+
+- 汇总所有 Haiku subagent 返回的证据片段。
+- 用 2–5 句话直接回答研究问题。
+- 每条证据标注来源层级（Abstract 层 / MD 层 / PDF 层）。
+- 证据不充分时明确说明不确定性和信息缺口。
+
+### 全程约束
+
+- 不读 Zotero Note（answer 模式下 Note 不是检索层）。
+- 不写 Zotero tags、Note、metadata。
 - 不写 Obsidian。
 - 不自动调用"处理这篇"。
 - 如用户在问答中明确说"记录 / 写入 / 加到索引"，再进入 Obsidian 写入安全协议。
@@ -242,9 +287,9 @@ Opus subagent（`model: opus`，一次只处理一篇）：
 
 - ocean-paper-writer 是写作主控，OLH 是文献证据服务和文献预处理服务。
 - ocean-paper-writer 默认只调用 `answer_with_kb`。
-- `answer_with_kb` 默认只查 Zotero Note。
-- 如果 Note 层证据不足，OLH 返回"是否继续读取 output.md"的请求，而不是自动读取。
-- 如果某篇文献还没有 Note，不得在 answer 模式中自动调用"处理这篇"。
+- `answer_with_kb` 走三轮检索：`search_library` → Abstract 过滤 → Haiku subagent 读 `output.md`。
+- `answer_with_kb` 不读 Zotero Note（Note 是用户个人精读参考）。
+- 如果某篇文献还没有 `output.md`，标记 `[MD NOT AVAILABLE]`，不得在 answer 模式中自动调用"处理这篇"。
 - 写作过程中缺 citation 时，优先返回 `[CITATION NEEDED]` 或 `[REFERENCE CANDIDATE]`，不编造 citation。
 
 ---
@@ -287,10 +332,10 @@ Opus subagent（`model: opus`，一次只处理一篇）：
   - journal
   - DOI
   - citekey
-  - 模板绝对路径：`~/.claude/skills/ocean-literature-harbor/templates/zotero_note_template.md`
+  - **模板 HTML 示例**：主 agent 先 Read 模板文件，将完整 HTML 嵌入 prompt（而非只写路径，禁止用文字描述 CSS 样式规则）
   - 阅读状态：`note-generated` 或 `imported`
 - prompt 不包含：其他论文 metadata、全局候选列表、完整旧 Note 正文。
-- subagent 执行：Read 模板 → `get_content` 读 MD → 生成 Note + 内容主题 tags（3–6 个）→ `write_note` → `write_tag`。
+- subagent 执行：`get_content` 读 MD → 按 prompt 中嵌入的模板 HTML 示例生成 Note + 内容主题 tags（3–6 个）→ `write_note` → `write_tag`。
 - 只返回短 JSON：`{"status": "written|skipped|failed", "noteKey": "xxx", "tags": ["..."]}`。
 - 主 agent 不接收完整 Note Markdown。
 - 主 agent 汇总时检查 noteKey 非空，否则标记 failed。
